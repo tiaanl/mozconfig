@@ -14,6 +14,14 @@ This tool assumes that you have a list of available configurations in the root o
 
 Using `mozconfig` will symlink a specified configuration to `~/code/mozilla/.mozconfig` which is the default used by `mach`.
 
+## Installation
+
+Symlink the `mozconfig` file to your favorite bin directory that is on the `$PATH`, e.g.:
+
+```bash
+ln -s mozconfig ~/bin/mozconfig
+```
+
 ## Usage
 
 ```bash
