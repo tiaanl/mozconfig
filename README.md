@@ -14,6 +14,24 @@ This tool assumes that you have a list of available configurations in the root o
 
 Using `mozconfig` will symlink a specified configuration to `~/code/mozilla/.mozconfig` which is the default used by `mach`.
 
+WARNING: Make sure to add the `MOZ_OBJ_DIR` to each configuration so that you don't have to rebuild the entire tree after switching configuration.
+
+A typical configuration for a debug build of Firefox:
+
+```bash
+mk_add_options MOZ_OBJDIR=obj-debug
+mk_add_options AUTOCLOBBER=1
+
+# Add debug symbols
+ac_add_options --enable-debug-symbols
+
+# Enable assertions
+ac_add_options --enable-debug
+
+# Disable optimizations
+ac_add_options --disable-optimize
+```
+
 ## Installation
 
 Symlink the `mozconfig` file to your favorite bin directory that is on the `$PATH`, e.g.:
