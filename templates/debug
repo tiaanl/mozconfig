@@ -1,0 +1,14 @@
+# IMPORTANT! Set the output obj directory
+mk_add_options MOZ_OBJDIR=obj-debug
+
+# Automagically check if the obj directory needs to be rebuilt.
+mk_add_options AUTOCLOBBER=1
+
+# Add debug symbols.
+ac_add_options --enable-debug-symbols
+
+# Enable assertions.
+ac_add_options --enable-debug
+
+# Disable optimizations.
+ac_add_options --disable-optimize

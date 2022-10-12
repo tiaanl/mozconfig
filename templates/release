@@ -1,0 +1,6 @@
+# IMPORTANT! Set the output obj directory
+mk_add_options MOZ_OBJDIR=obj-release
+
+# Automagically check if the obj directory needs to be rebuilt.
+mk_add_options AUTOCLOBBER=1
+

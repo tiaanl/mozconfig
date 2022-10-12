@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import sys
 
 
 MOZCONFIG = '.mozconfig'
@@ -57,10 +56,39 @@ def parse_args():
     parser.add_argument('-v', '--verbose',
                         help="show verbose output", action='store_true')
     parser.add_argument(
+        '-t', '--template',
+        help="Create a new configuration based on the specified template",
+        default=None)
+    parser.add_argument(
         '-r', '--root', default=os.getcwd(), help='the starting directory to find configs')
     parser.add_argument('config', nargs='?', help='the config to use')
 
     return parser.parse_args()
+
+
+def create_from_template(root, template):
+    templates_root = os.path.join(os.path.dirname(
+        os.path.realpath(__file__)), 'templates')
+    template_path = os.path.join(templates_root, template)
+
+    if not os.path.exists(template_path):
+        print('Template not found, available templates: {}'.format(
+            ', '.join([os.path.basename(t)
+                      for t in os.listdir(templates_root)])
+        ))
+        return
+
+    target_path = os.path.join(root, PREFIX + template)
+
+    if os.path.exists(target_path):
+        print('Target configuration already exists, delete it before createing a new configuration. ({})'.format(target_path))
+        return
+
+    if VERBOSE:
+        print('Copying file {} to {}...'.format(template_path, target_path))
+
+    from shutil import copy
+    copy(template_path, target_path)
 
 
 def main():
@@ -100,6 +128,8 @@ def main():
     elif args.list:
         for config in configs:
             print(config)
+    elif args.template:
+        create_from_template(args.root, args.template)
     else:
         if current_config is None:
             print('none')
