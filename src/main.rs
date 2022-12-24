@@ -13,7 +13,7 @@ enum ExitStatus {
 fn create_configuration(
     name: &str,
     mozconfig: &Option<Mozconfig>,
-) -> Result<ExitStatus, std::io::Error> {
+) -> Result<ExitStatus, mozconfig::Error> {
     if let Some(ref mozconfig) = mozconfig {
         if !mozconfig.config_exists(name) {
             mozconfig.create(name)?;
@@ -39,6 +39,10 @@ fn create_configuration(
 
 #[derive(Debug, StructOpt)]
 struct Opt {
+    /// List all available configuratons.
+    #[structopt(short, long, name = "list")]
+    list: bool,
+
     /// Create a new .mozconfig configuration with the given name.
     #[structopt(short, long, name = "name")]
     create: Option<String>,
@@ -86,6 +90,21 @@ fn main_with_exit_status() -> ExitStatus {
             return ExitStatus::Error;
         }
     };
+
+    if opt.list {
+        match mozconfig.list_configs() {
+            Ok(list) => {
+                list.iter().for_each(|config| println!("{}", config));
+            }
+
+            Err(err) => {
+                eprintln!("Could not list configurations ({})", err);
+                return ExitStatus::Error;
+            }
+        }
+
+        return ExitStatus::Success;
+    }
 
     // Default command is to show the current configuration.
     if let Some(config) = mozconfig.current() {
