@@ -1,55 +1,101 @@
-use std::fmt::Debug;
-use std::path::{Path, PathBuf};
+mod mozconfig;
 
-const MOZCONFIG_PREFIX: &str = ".mozconfig";
+use std::path::PathBuf;
 
-struct MozconfigDir {
-    root: PathBuf,
+use mozconfig::Mozconfig;
+use structopt::StructOpt;
+
+enum ExitStatus {
+    Success = 0,
+    Error = 1,
 }
 
-impl std::fmt::Display for MozconfigDir {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.root.fmt(f)
+fn create_configuration(
+    name: &str,
+    mozconfig: &Option<Mozconfig>,
+) -> Result<ExitStatus, std::io::Error> {
+    if let Some(ref mozconfig) = mozconfig {
+        if !mozconfig.config_exists(name) {
+            mozconfig.create(name)?;
+            Ok(ExitStatus::Success)
+        } else {
+            eprintln!("Configuration \"{}\" already exists.", name);
+            Ok(ExitStatus::Error)
+        }
+    } else {
+        let root = std::env::current_dir()?;
+        if let Err(err) = Mozconfig::from_path(&root).create(name) {
+            eprintln!(
+                "Could not create new configuration in {} ({})",
+                root.display(),
+                err
+            );
+            Ok(ExitStatus::Error)
+        } else {
+            Ok(ExitStatus::Success)
+        }
     }
 }
 
-impl MozconfigDir {
-    fn from_child_path<P: AsRef<Path>>(path: P) -> Option<Self> {
-        let exists = {
-            let full = path.as_ref().join(MOZCONFIG_PREFIX);
-            std::fs::metadata(&full).is_ok()
-        };
+#[derive(Debug, StructOpt)]
+struct Opt {
+    /// Create a new .mozconfig configuration with the given name.
+    #[structopt(short, long, name = "name")]
+    create: Option<String>,
 
-        if exists {
-            Some(Self {
-                root: path.as_ref().to_path_buf(),
-            })
-        } else {
-            match path.as_ref().parent() {
-                Some(parent) => Self::from_child_path(parent),
-                None => None,
+    /// Manually set the root where .mozconfig files should be searched for.
+    #[structopt(short, long, name = "root")]
+    root: Option<PathBuf>,
+}
+
+fn main_with_exit_status() -> ExitStatus {
+    let opt = Opt::from_args();
+
+    let start = if let Some(root) = opt.root {
+        root
+    } else {
+        // Start from the current working directory.
+        match std::env::current_dir() {
+            Ok(path) => path,
+            Err(err) => {
+                eprintln!("Could not detect current directory ({})", err);
+                return ExitStatus::Error;
             }
         }
+    };
+
+    let mozconfig = Mozconfig::from_child_path(start);
+
+    // Handle any options that doesn't require a [Mozconfig].
+    if let Some(name) = opt.create {
+        return match create_configuration(name.as_str(), &mozconfig) {
+            Ok(exit_status) => exit_status,
+            Err(err) => {
+                eprintln!("Could not create configuration ({})", err);
+                ExitStatus::Error
+            }
+        };
+    }
+
+    let mozconfig = match mozconfig {
+        Some(root) => root,
+        None => {
+            eprintln!(
+                "\".mozconfig\" file not found. Run \"mozconfig --init <variant>\" to create one."
+            );
+            return ExitStatus::Error;
+        }
+    };
+
+    // Default command is to show the current configuration.
+    if let Some(config) = mozconfig.current() {
+        println!("{}", config);
+        ExitStatus::Success
+    } else {
+        ExitStatus::Error
     }
 }
 
 fn main() {
-    // Start from the current working directory.
-    let start = match std::env::current_dir() {
-        Ok(path) => path,
-        Err(err) => {
-            eprintln!("Could not detect current directory ({})", err);
-            return;
-        }
-    };
-
-    let mozconfig = match MozconfigDir::from_child_path(&start) {
-        Some(root) => root,
-        None => {
-            eprintln!("\".mozconfig\" file not found. Run \"mozconfig --init\" to create one.");
-            return;
-        }
-    };
-
-    println!("root = {}", mozconfig);
+    std::process::exit(main_with_exit_status() as i32);
 }
