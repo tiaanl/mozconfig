@@ -45,11 +45,6 @@ impl Mozconfig {
         }
     }
 
-    /// Returns the root path that is used.
-    pub fn root(&self) -> &PathBuf {
-        &self.root
-    }
-
     /// Returns a list of available configurations in the root.
     pub fn list_configs(&self) -> Result<Vec<String>, Error> {
         let mut configs = vec![];
@@ -206,6 +201,6 @@ mod tests {
         let mozconfig = Mozconfig::from_child_path(child);
         assert!(mozconfig.is_some());
         let mozconfig = mozconfig.unwrap();
-        assert_eq!(*mozconfig.root(), root);
+        assert_eq!(*mozconfig.root, root);
     }
 }

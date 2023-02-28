@@ -39,17 +39,21 @@ fn create_configuration(
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-    /// List all available configuratons.
+    /// List all available configuratons
     #[structopt(short, long, name = "list")]
     list: bool,
 
-    /// Create a new .mozconfig configuration with the given name.
+    /// Create a new .mozconfig configuration with the given name
     #[structopt(short, long, name = "name")]
     create: Option<String>,
 
-    /// Manually set the root where .mozconfig files should be searched for.
-    #[structopt(short, long, name = "root")]
+    /// Manually set the root where .mozconfig files should be searched for
+    #[structopt(short, long, name = "path")]
     root: Option<PathBuf>,
+
+    /// Activate the given configuration
+    #[structopt(name = "config")]
+    to_activate: Option<String>,
 }
 
 fn main_with_exit_status() -> ExitStatus {
@@ -106,13 +110,29 @@ fn main_with_exit_status() -> ExitStatus {
         return ExitStatus::Success;
     }
 
+    if let Some(to_activate) = opt.to_activate {
+        return match mozconfig.activate(to_activate.as_str()) {
+            Ok(..) => ExitStatus::Success,
+            Err(err) => {
+                eprintln!("{err}");
+                ExitStatus::Error
+            }
+        };
+    }
+
     // Default command is to show the current configuration.
     match mozconfig.current() {
         Ok(maybe_config) => match maybe_config {
-            Some(config) => {println!("{config}"); ExitStatus::Success},
-            None =>ExitStatus::Success,
+            Some(config) => {
+                println!("{config}");
+                ExitStatus::Success
+            }
+            None => ExitStatus::Success,
+        },
+        Err(err) => {
+            eprintln!("{err}");
+            ExitStatus::Error
         }
-        Err(err) => {eprintln!("{err}"); ExitStatus::Error},
     }
 }
 
