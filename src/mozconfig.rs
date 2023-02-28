@@ -1,31 +1,16 @@
+use regex::Regex;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
-
-use regex::Regex;
+use thiserror::Error;
 
 const MOZCONFIG_PREFIX: &str = ".mozconfig";
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
+    #[error("Configuration \"{0}\" does not exist")]
     ConfigDoesNotExist(String),
-    Io(std::io::Error),
-}
-
-impl From<std::io::Error> for Error {
-    fn from(value: std::io::Error) -> Self {
-        Self::Io(value)
-    }
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::ConfigDoesNotExist(name) => {
-                write!(f, "Configuration \"{}\" does not exist", name)
-            }
-            Error::Io(err) => write!(f, "{}", err),
-        }
-    }
+    #[error("An error occured: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 pub struct Mozconfig {
@@ -86,24 +71,26 @@ impl Mozconfig {
     }
 
     /// Return the name of the current configuration.
-    pub fn current(&self) -> Option<String> {
-        let path = self.path_for_current();
+    pub fn current(&self) -> Result<Option<String>, Error> {
+        let path = self.path_to_active_symlink();
 
         if !path.exists() {
-            // No error and no current symlink.
-            return None;
+            return Ok(None);
         }
 
-        Self::config_from_path(path)
+        // Resolve the active symlink to the actual config.
+        let real = path.canonicalize()?;
+
+        Ok(Self::config_from_path(real))
     }
 
     pub fn create(&self, name: &str) -> Result<(), Error> {
         let path = self.path_for_config(name);
 
-        let contents = format!("mk_add_options MOZ_OBJDIR=obj-{}", name);
-        std::fs::write(&path, contents)?;
+        let contents = format!("mk_add_options MOZ_OBJDIR=obj-{name}");
+        std::fs::write(path, contents)?;
 
-        println!("Configuration \"{}\" created.", name);
+        println!("Configuration \"{name}\" created.");
 
         Ok(())
     }
@@ -115,7 +102,7 @@ impl Mozconfig {
             return Err(Error::ConfigDoesNotExist(name.to_string()));
         }
 
-        let current_path = self.path_for_current();
+        let current_path = self.path_to_active_symlink();
         if current_path.exists() {
             std::fs::remove_file(&current_path)?;
         }
@@ -129,12 +116,12 @@ impl Mozconfig {
     /// Given a name, construct an absolute path to the configuration file with
     /// the given name.
     pub fn path_for_config(&self, name: &str) -> PathBuf {
-        self.root.join(format!("{}-{}", MOZCONFIG_PREFIX, name))
+        self.root.join(format!("{MOZCONFIG_PREFIX}-{name}"))
     }
 
-    /// Return name absolute path to the symlink used for the current
+    /// Return an absolute path to the symlink used for the current
     /// configuration.
-    fn path_for_current(&self) -> PathBuf {
+    fn path_to_active_symlink(&self) -> PathBuf {
         self.root.join(MOZCONFIG_PREFIX)
     }
 

@@ -19,7 +19,7 @@ fn create_configuration(
             mozconfig.create(name)?;
             Ok(ExitStatus::Success)
         } else {
-            eprintln!("Configuration \"{}\" already exists.", name);
+            eprintln!("Configuration \"{name}\" already exists.");
             Ok(ExitStatus::Error)
         }
     } else {
@@ -62,7 +62,7 @@ fn main_with_exit_status() -> ExitStatus {
         match std::env::current_dir() {
             Ok(path) => path,
             Err(err) => {
-                eprintln!("Could not detect current directory ({})", err);
+                eprintln!("Could not detect current directory ({err})");
                 return ExitStatus::Error;
             }
         }
@@ -75,7 +75,7 @@ fn main_with_exit_status() -> ExitStatus {
         return match create_configuration(name.as_str(), &mozconfig) {
             Ok(exit_status) => exit_status,
             Err(err) => {
-                eprintln!("Could not create configuration ({})", err);
+                eprintln!("Could not create configuration ({err})");
                 ExitStatus::Error
             }
         };
@@ -94,11 +94,11 @@ fn main_with_exit_status() -> ExitStatus {
     if opt.list {
         match mozconfig.list_configs() {
             Ok(list) => {
-                list.iter().for_each(|config| println!("{}", config));
+                list.iter().for_each(|config| println!("{config}"));
             }
 
             Err(err) => {
-                eprintln!("Could not list configurations ({})", err);
+                eprintln!("Could not list configurations ({err})");
                 return ExitStatus::Error;
             }
         }
@@ -107,11 +107,12 @@ fn main_with_exit_status() -> ExitStatus {
     }
 
     // Default command is to show the current configuration.
-    if let Some(config) = mozconfig.current() {
-        println!("{}", config);
-        ExitStatus::Success
-    } else {
-        ExitStatus::Error
+    match mozconfig.current() {
+        Ok(maybe_config) => match maybe_config {
+            Some(config) => {println!("{config}"); ExitStatus::Success},
+            None =>ExitStatus::Success,
+        }
+        Err(err) => {eprintln!("{err}"); ExitStatus::Error},
     }
 }
 
